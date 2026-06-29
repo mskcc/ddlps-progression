@@ -4,3 +4,13 @@
 ~$*
 MSigDb
 .DS_Store
+
+# Zenodo-hosted data blobs (not committed; fetched separately)
+/data/cellLines.rda
+/data/chr12qEvent.csv
+/data/sampleTable.csv
+/data/targetsUnion.Rdata
+/data/u133a.rda
+/data/db/
+/data/raw/
+/analysis/mRNAvsCGH/Rlib/hgu133a.sqlite
