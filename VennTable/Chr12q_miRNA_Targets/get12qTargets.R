@@ -1,7 +1,5 @@
 dd=read.delim("../U133A_NFvsWD/u133A_WDrs_vs_NF_Pfilter_ALL_v3.txt")
 data(miRNATargets)
-
-data(miRNATargets)
 ii=which(miRNATargets$gene.miRNA.map$mature.miRNA %in% miRNATargets$chr12.miRNA)
 chr12GenesTargets=unique(miRNATargets$gene.miRNA.map$GENE[ii])
 
