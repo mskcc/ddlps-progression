@@ -161,7 +161,7 @@ PASS: prints `ALL DATA SYMLINKS OK`.
 cd "$REPO"
 for f in \
   data/u133a.rda data/cellLines.rda data/targetsUnion.Rdata \
-  data/sampleTable.csv \
+  data/sampleTable.csv data/chr12qEvent.csv \
   data/raw/CRDB/FullDataExport_Nick_Socci_04_05_2016___PaperFREEZE_2017_05_03.txt \
   data/raw/CGH/cghCBSRdataFiles \
   data/raw/CGH/rae/FEAT.file \
@@ -172,6 +172,8 @@ for f in \
   data/db/Proj_04610_manu___SOMATIC_FACETS.vep.filtered.maf.gz \
   data/db/Proj_3704_Merge_GeneCounts.txt.gz \
   data/db/targetsUnion.Rdata data/db/chr12q_mirna.txt \
+  data/db/maf_colClasses data/db/maf_colnames \
+  data/db/progressionEventTable.csv \
   data/db/averageSignal_3Sort_M3_.txt data/db/human.hg18.genome data/db/survialRegions \
   data/db/progressionSet.txt data/db/CNV.file \
   analysis/mRNAvsCGH/Rlib/annotation.R analysis/mRNAvsCGH/Rlib/hgu133a.sqlite ; do
