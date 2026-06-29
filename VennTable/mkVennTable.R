@@ -14,7 +14,7 @@
 # This is the only version. A later refreshed-cell-line re-run (mkVennTableV2.R,
 # v24) was removed from the branch: nothing consumed its output, it was never
 # the published panel, and its cell-line swap dropped MDM2 itself from the
-# responder set. See RECONCILIATION_2026-06-15_v2.md.
+# responder set.
 #
 # This script integrates multiple genomic data types into a unified
 # gene-level table with Venn diagrams showing overlaps across platforms.

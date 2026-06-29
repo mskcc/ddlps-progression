@@ -1,11 +1,11 @@
-# Figure 1B — making it reproducible
+# Figure 1B — auditable region counts
 
-The published Figure 1B is a **hand-drawn** nested 4-region diagram. Its region
-totals were assigned by hand and **do not close**: the visible numbers
-(260, 20, 1, 11, 16, 12, 22, 19, 23, 304) sum to **688**, not the **686** genes in
-the join table. `mkFig1B.R` regenerates the same diagram from the canonical v14
-join table so every region is reproducible and the counts sum to 686 exactly
-(enforced by a `stopifnot`).
+The published Figure 1B is a **hand-drawn** 4-region diagram that lives outside
+this repo. Its region totals were assigned by hand and **do not close**: the
+visible numbers (260, 20, 1, 11, 16, 12, 22, 19, 23, 304) sum to **688**, not
+the **686** genes in the join table. `mkFig1B.R` recomputes every region from
+the canonical v14 join table so the counts are reproducible and sum to 686
+exactly (enforced by a `stopifnot`). It does not redraw the figure.
 
 ## Script
 
@@ -13,8 +13,7 @@ join table so every region is reproducible and the counts sum to 686 exactly
 - reads `joinTableCragoProgression_v14_.txt` (the canonical v14 join table from
   `mkVennTable.R`),
 - defines the four sets (below),
-- writes `fig1B_counts_v14_.txt` (every disjoint region, auditable, sums to 686),
-- draws an area-proportional Euler diagram with `eulerr` → `fig1B_v14_.pdf`.
+- writes `fig1B_counts_v14_.txt` (every disjoint region, auditable, sums to 686).
 
 Run: `cd VennTable && Rscript --no-save mkFig1B.R`
 
@@ -44,18 +43,15 @@ The figure's intent matches these sets, but its hand numbers differ slightly
 | grand total | 688 (does not close) | **686** |
 
 Use the reproducible numbers; the prose has already been updated to 686 / 20 / 107 /
-253 / 17.9% (see `RECONCILIATION_2026-06-15_v2.md` Issue 4).
+253 / 17.9%.
 
-## Fidelity caveats (read before "fixing" the diagram)
+## Bookkeeping notes
 
-- **Counts are exact; areas are best-fit.** `eulerr` solves a 4-set area-proportional
-  layout numerically and cannot always render every region with perfect area. One
-  pinch-point region (`12q13-15 & shMDM2` only) is genuinely 0 in the data and shows
-  as "0" at a boundary. This is correct, not a bug.
+- The `12q13-15 & shMDM2` region is genuinely 0 in the v14 data (only MDM2 itself
+  is a 12q gene responding to shMDM2 knockdown, and it also responds to CDK4i, so
+  it sits in the triple overlap). The hand-drawn figure conflates this with the
+  `12q & CDK4i` overlap.
 - The published panel nested shMDM2 *inside* a combined "shMDM2 or CDK4i" set and
-  used hand counts. `mkFig1B.R` instead treats shMDM2 and CDK4i as the two real
-  table columns (the honest, reproducible decomposition). The biological message is
-  identical; the bookkeeping now closes.
-- This is a *figure regenerated from data*, not a pixel match to the hand drawing.
-  If the journal requires the exact published styling, use this script's counts to
-  annotate the existing artwork rather than replacing it.
+  used hand counts. This script instead treats shMDM2 and CDK4i as the two real
+  table columns -- the honest, reproducible decomposition. The biological message
+  is identical; the bookkeeping now closes.
