@@ -42,9 +42,9 @@ Many scripts rely on helper functions defined in `~/.Rprofile` (`cc()`, `write.x
 `DATE()`, `len()`, etc.); source it first in a fresh session.
 
 R 4.2.2 or newer. Required packages: `tidyverse`, `limma`, `edgeR`, `gplots`,
-`IRanges`/`GenomicRanges`, `data.table`, `readxl`, `openxlsx`, `digest`, `RSQLite`, `fs`,
-`stringr`, `eulerr`. A subset of scripts also need `bedr` (with `bedtools` on `PATH`)
-and `tidygenomics`.
+`IRanges`/`GenomicRanges`, `data.table`, `readxl`, `openxlsx`, `digest`, `RSQLite`,
+`stringr`, `org.Hs.eg.db`, `AnnotationDbi`, `knitr`. A subset of scripts also
+need `bedr` (with `bedtools` on `PATH`) and `tidygenomics`.
 
 Analyses load processed data from `data/`: precompiled snapshots in `data/db/` and the
 committed clinical export in `data/raw/CRDB/`. Each analysis directory has a

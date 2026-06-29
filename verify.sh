@@ -311,14 +311,15 @@ step_2() {
   # caller and is NOT exercised by any verify step.
   out="$("$RSCRIPT" -e '
 pkgs <- c("tidyverse","limma","edgeR","gplots","IRanges","GenomicRanges",
-          "data.table","readxl","openxlsx","digest","RSQLite","fs","stringr",
+          "data.table","readxl","openxlsx","digest","RSQLite","stringr",
+          "org.Hs.eg.db","AnnotationDbi","knitr",
           "bedr","tidygenomics")
 inst <- rownames(installed.packages())
 miss <- pkgs[!(pkgs %in% inst)]
 cat(if(length(miss)) paste(miss, collapse=" ") else "NONE")
 ' 2>/dev/null)"
   if [ "$out" = "NONE" ]; then
-    record 2 PASS "all required packages installed (openxlsx, bedr, tidygenomics)"
+    record 2 PASS "all required packages installed (openxlsx, bedr, tidygenomics, org.Hs.eg.db, AnnotationDbi, knitr)"
   else
     # bedr/tidygenomics missing = WARN (degrades specific steps); core = FAIL
     local hard=""
@@ -636,7 +637,7 @@ step_desc() {
   case "$1" in
     0)  echo "R present (>= floor)" ;;
     1)  echo "branch + ~/.Rprofile helpers" ;;
-    2)  echo "required R packages (openxlsx, bedr, tidygenomics)" ;;
+    2)  echo "required R packages (openxlsx, bedr, tidygenomics, org.Hs.eg.db, AnnotationDbi, knitr)" ;;
     3a) echo "data symlinks resolve" ;;
     3b) echo "input blobs present" ;;
     3c) echo "loader smoke test (dims)" ;;

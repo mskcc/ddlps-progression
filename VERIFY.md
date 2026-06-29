@@ -102,7 +102,8 @@ was written against — stop and reconcile before continuing.
 ```bash
 Rscript -e '
 pkgs <- c("tidyverse","limma","edgeR","gplots","IRanges","GenomicRanges",
-          "data.table","readxl","openxlsx","digest","RSQLite","fs","stringr",
+          "data.table","readxl","openxlsx","digest","RSQLite","stringr",
+          "org.Hs.eg.db","AnnotationDbi","knitr",
           "bedr","tidygenomics")
 inst <- rownames(installed.packages())
 for (p in pkgs) cat(sprintf("%-14s %s\n", p, if (p %in% inst) "OK" else "*** MISSING ***"))
