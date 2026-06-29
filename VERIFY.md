@@ -271,28 +271,27 @@ git checkout -- joinTableCragoProgression_v14_.txt cghCellLine_miRNA_Venn_v14_.p
   mrnaGeneSetsVenn_v14_.pdf vennDiagrams_mRNA_v14_.pdf joinTableCragoProgression_v14_.xlsx 2>/dev/null
 ```
 
-### 4b. Regenerate the Venn **inputs** and confirm they match **[hpc-first-run]**
+### 4b. Upstream DE regenerators (not run by `verify.sh`)
 
-Off-server I used the *committed* intermediate files. On HPC, confirm the upstream DE
-scripts reproduce them.
+The seven inputs `mkVennTable.R` reads are committed to the repo, and step 4a treats them
+as the boundary of the figure-reproduction check. The scripts that originally produced
+those inputs are preserved alongside each input as the canonical record of its derivation,
+but `verify.sh` does NOT run them:
 
-```bash
-cd "$REPO/VennTable/U133A_NFvsWD"   && Rscript --no-save doU133A_WDvsNF.R   2>&1 | tail -3
-cd "$REPO/VennTable/RNASeq_Progression" && Rscript --no-save diffRNASeqPOOLED.R 2>&1 | tail -3
-cd "$REPO/VennTable/RNASeq_Progression" && Rscript --no-save diffRNASeqPAIRED.R 2>&1 | tail -3
-cd "$REPO/VennTable/CGHGenes"       && Rscript --no-save getCGHGenes.R       2>&1 | tail -3
-cd "$REPO/VennTable/Chr12q_miRNA_Targets" && Rscript --no-save get12qTargets.R 2>&1 | tail -3
-cd "$REPO"
-git --no-pager diff --stat -- \
-  VennTable/U133A_NFvsWD/u133A_WDrs_vs_NF_Pfilter_ALL_v4.txt \
-  VennTable/RNASeq_Progression/rnaSEQ_FIRST_WD_vs_NF_Pop__FDR_1.01_.txt \
-  VennTable/RNASeq_Progression/rnaSEQ_FIRST_WD_vs_NF_Paired__FDR__v2_1.01_.txt \
-  VennTable/CGHGenes/geneCGHvsU133aConcordence_v3.txt
-```
+- `VennTable/U133A_NFvsWD/doU133A_WDvsNF.R` → `u133A_WDrs_vs_NF_Pfilter_ALL_v4.txt`
+- `VennTable/RNASeq_Progression/diffRNASeqPOOLED.R` → `rnaSEQ_FIRST_WD_vs_NF_Pop__FDR_1.01_.txt`
+- `VennTable/RNASeq_Progression/diffRNASeqPAIRED.R` → `rnaSEQ_FIRST_WD_vs_NF_Paired__FDR__v2_1.01_.txt`
+- `VennTable/CGHGenes/getCGHGenes.R` → `geneCGHvsU133aConcordence_v3.txt`
+- `VennTable/Chr12q_miRNA_Targets/get12qTargets.R` → `chr12_miRNA_ConsistentTargets.txt`
+  (reads the frozen sibling `../U133A_NFvsWD/u133A_WDrs_vs_NF_Pfilter_ALL_v3.txt`; no
+  script regenerates `_v3.txt`)
+- `VennTable/CellLines/diffCellLines.R` → `CellLines/diffGenes_20170428_*.txt`
+  (the script's output filename embeds `DATE()`, so re-running it today would not produce
+  the dated files `mkVennTable.R` reads — see `mkVennTable.R` lines 8-10)
 
-PASS: each script completes; the `git diff` of the four intermediate `.txt` files shows no
-change or trivial float diffs. Then `git checkout --` them. (If these match, re-running 4a
-on the freshly generated inputs is optional but is the strongest end-to-end proof.)
+To exercise any of these regenerators by hand, run it from its own directory and compare
+the regenerated output against the committed copy with `git diff` (then
+`git checkout --` to discard the regenerated file).
 
 ### 4c. `figures/mRNAHeatmap/heatmapV2.R` — Fig 1A **[verified-local]**
 
@@ -548,7 +547,6 @@ PASS: empty output.
 | 3c| Loader smoke test: 349 / 19933×187 / 24904×187 / 20032×24 | ☐ |
 | 3d| `data/maf.R` loads (record row counts) | ☐ |
 | 4a| `mkVennTable.R` → join table reproduces (text diff trivial) | ☐ |
-| 4b| Venn inputs regenerate and match | ☐ |
 | 4c| `heatmapV2.R` → Fig 1A | ☐ |
 | 5a| `plotRAEProfile.R` → Fig 2A | ☐ |
 | 5b| `plotChrRegion.R` → Fig 3B/4A | ☐ |
