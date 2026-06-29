@@ -1,4 +1,6 @@
-# Singer/Crago WD-DDLS progression paper — analysis code
+# Longitudinal study of liposarcoma genomics
+
+Crago AM, *et al*.
 
 Code to regenerate the computational figures and tables in:
 
