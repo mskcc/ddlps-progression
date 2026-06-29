@@ -1,0 +1,18 @@
+Figure 1A heatmap -- classification accuracy
+Clustering: Euclidean distance + complete linkage (heatmap.2 defaults), cut at k=3.
+Positive class = WDLS (tumor); Negative = normal fat (NF).
+
+Entities clustered: 90  (truth: 62 WD, 28 NF)
+
+Three dendrogram brackets (top -> bottom in figure):
+  bracket n=26: NF= 0 WD=26 -> called WD (26/26 correct)
+  bracket n=22: NF=21 WD= 1 -> called NF (21/22 correct)
+  bracket n=42: NF= 7 WD=35 -> called WD (35/42 correct)
+
+Confusion matrix (positive = WD):
+  TP=61  FP=7  FN=1  TN=21
+
+Accuracy    = (TP+TN)/N   = 82/90 = 91.1%
+Sensitivity = TP/(TP+FN)  = 61/62 = 98.4%   (WDLS recall)
+Specificity = TN/(TN+FP)  = 21/28 = 75.0%   (normal-fat recall)
+Precision   = TP/(TP+FP)  = 61/68 = 89.7%   (PPV for WDLS)

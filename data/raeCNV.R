@@ -1,0 +1,1 @@
+raeCNV=read.delim("db/CNV.file",skip=1)

@@ -1,0 +1,32 @@
+Figure 1B -- reproducible region counts from joinTableCragoProgression_v14_.txt
+Total genes (N) = 686
+
+Set definitions:
+  12q13-15  : CGH.Chr12 == 'X'
+  CNA-other : CGH.RAE > 0 AND not 12q13-15
+  shMDM2    : FDR.MDM2 not NA
+  CDK4i     : FDR.CDK4 not NA
+  Other     : none of the above
+
+Set totals:
+  12q13-15        : 20
+  CNA-other       : 302
+  shMDM2          : 72
+  CDK4i           : 82
+  cell-line union : 107
+  Other           : 301
+
+Disjoint region counts (each gene counted once; these sum to N):
+  Other                          301
+  CNA-other                      262
+  shMDM2&CDK4i                   26
+  CDK4i                          21
+  CNA-other&shMDM2&CDK4i         20
+  12q13-15                       16
+  shMDM2                         16
+  CNA-other&CDK4i                11
+  CNA-other&shMDM2               9
+  12q13-15&CDK4i                 3
+  12q13-15&shMDM2&CDK4i          1
+
+SUM = 686  (must equal 686)
