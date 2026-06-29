@@ -3,10 +3,13 @@
 # verify.sh - automated runner for the protocol in VERIFY.md
 # (bash 3.2+ compatible: no associative arrays, so it runs on macOS too)
 #
-# Confirms the pruned, paper-only branch (manu/v_2026) is intact and reproduces
+# Confirms the pruned, paper-only public repo (master) is intact and reproduces
 # the manuscript's computational outputs. Run it on the HPC server, where the
 # full environment exists (R with openxlsx and bedr/bedtools, the ~/.Rprofile
 # helpers, and the institutional /ifs/rtsia01 paths).
+#
+# (Historical: the pruning work happened on branch manu/v_2026, which is now
+# the master branch of the public repo.)
 #
 # USAGE
 #   ./verify.sh                 # run every step, print a summary table
@@ -266,23 +269,23 @@ step_0() {
 step_1() {
   step_hdr 1 "Branch + ~/.Rprofile helpers"
   local br ref; br="$(git -C "$REPO" branch --show-current)"
-  # PASS on manu/v_2026 itself, or on any feature branch descended from it
-  # (i.e. its merge-base with manu/v_2026 is manu/v_2026's tip). Refs are
-  # resolved locally; if no local manu/v_2026 ref exists, try origin/.
-  if [ "$br" = "manu/v_2026" ]; then
-    record 1 PASS "on branch manu/v_2026 ($(git -C "$REPO" log --oneline -1))"
+  # PASS on master itself, or on any feature branch descended from it (i.e.
+  # master's tip is an ancestor of HEAD). Refs are resolved locally; if no
+  # local master ref exists, fall back to origin/master.
+  if [ "$br" = "master" ]; then
+    record 1 PASS "on branch master ($(git -C "$REPO" log --oneline -1))"
   else
-    if git -C "$REPO" rev-parse --verify --quiet manu/v_2026 >/dev/null; then
-      ref="manu/v_2026"
-    elif git -C "$REPO" rev-parse --verify --quiet origin/manu/v_2026 >/dev/null; then
-      ref="origin/manu/v_2026"
+    if git -C "$REPO" rev-parse --verify --quiet master >/dev/null; then
+      ref="master"
+    elif git -C "$REPO" rev-parse --verify --quiet origin/master >/dev/null; then
+      ref="origin/master"
     else
       ref=""
     fi
     if [ -n "$ref" ] && git -C "$REPO" merge-base --is-ancestor "$ref" HEAD 2>/dev/null; then
       record 1 PASS "on branch '$br' (descended from $ref - $(git -C "$REPO" log --oneline -1))"
     else
-      record 1 WARN "branch is '$br' (not a descendant of manu/v_2026)"
+      record 1 WARN "branch is '$br' (not a descendant of master)"
     fi
   fi
   if [ -f "$HOME/.Rprofile" ]; then

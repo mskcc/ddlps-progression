@@ -1,11 +1,14 @@
-# VERIFY.md — verifying the pruned `manu/v_2026` branch on the HPC server
+# VERIFY.md — verifying the public `master` branch on the HPC server
 
-This document is a step-by-step protocol to confirm that the pruned, paper-only branch
-(`manu/v_2026`) is intact and reproduces the manuscript's computational outputs **on the
+This document is a step-by-step protocol to confirm that the pruned, paper-only public repo
+(`master`) is intact and reproduces the manuscript's computational outputs **on the
 HPC server**, where the full environment exists (R with `openxlsx`, `bedr`/bedtools,
 the `~/.Rprofile` helpers, and the institutional `/ifs/rtsia01/...` paths). All Excel
 writes in the figure pipeline have been migrated off the rJava-backed `xlsx` package to
 `openxlsx`, so neither `xlsx` nor a Java install is required.
+
+(Historical: the pruning work happened on branch `manu/v_2026`, which is now the `master`
+branch of the public repo.)
 
 It was written off-server, so several scripts could only be *partially* verified locally
 (no `bedr`, no `/ifs` paths). Steps below are flagged:
@@ -74,14 +77,14 @@ Rscript --version
 
 ```bash
 cd "$REPO"
-git status -sb | head -1            # expect: ## manu/v_2026
+git status -sb | head -1            # expect: ## master
 git log --oneline -1               # the prune/manifest commit (or note if not yet committed)
 ls -l ~/.Rprofile                  # must exist; defines cc(), write.xls(), DATE(), len(), etc.
 ```
 
 PASS:
-- branch is `manu/v_2026`, **or** any feature branch descended from it (`verify.sh`
-  accepts both — useful when working on a `fix/*` branch off `manu/v_2026`);
+- branch is `master`, **or** any feature branch descended from it (`verify.sh`
+  accepts both — useful when working on a `fix/*` branch off `master`);
 - `~/.Rprofile` exists. The HPC `~/.Rprofile` must define `cc`, `write.xls`, `write_xlsx`,
   `DATE`, `len`, `getSDIR`, `halt`, `suppress`. Confirm:
 
@@ -536,7 +539,7 @@ PASS: empty output.
 
 | # | Check | Result |
 |---|---|---|
-| 1 | Branch `manu/v_2026`, `~/.Rprofile` helpers present | ☐ |
+| 1 | Branch `master`, `~/.Rprofile` helpers present | ☐ |
 | 2 | All packages OK incl. `openxlsx` and `bedr`(+bedtools) | ☐ |
 | 3a| No broken `data` symlinks | ☐ |
 | 3b| All input blobs (`data/`, `data/db/`, `Rlib/`, `FEAT.file`) present | ☐ |
