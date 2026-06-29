@@ -18,7 +18,7 @@ Code to regenerate the computational figures and tables in:
 ## Processed data (Zenodo)
 
 The precompiled snapshots and clinical export the scripts read from (`data/db/` and
-`data/raw/`) are distributed separately on Zenodo: **link coming soon**.
+`data/raw/`) are distributed separately on Zenodo: <https://doi.org/10.5281/zenodo.21041099>.
 
 After cloning this repo, download the Zenodo tarball into the repo root and extract it
 in place:
