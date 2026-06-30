@@ -1,5 +1,7 @@
 # Longitudinal study of liposarcoma genomics
 
+Version: v1.0.0
+
 Crago AM, *et al*.
 
 Code to regenerate the computational figures and tables in:
@@ -38,13 +40,15 @@ Scripts use relative paths and are run **from their own directory** in batch mod
 cd VennTable && Rscript --no-save mkVennTable.R
 ```
 
-Many scripts rely on helper functions defined in `~/.Rprofile` (`cc()`, `write.xls()`,
-`DATE()`, `len()`, etc.); source it first in a fresh session.
+Helper functions used by the scripts (`cc()`, `len()`, `DATE()`, `suppress()`,
+`write.xls()`, `write_xlsx()`) are defined in `R/helpers.R` and sourced
+automatically by each script that needs them via the per-directory `R -> ../R`
+symlinks. No `~/.Rprofile` setup is required.
 
 R 4.2.2 or newer. Required packages: `tidyverse`, `limma`, `edgeR`, `gplots`,
-`IRanges`/`GenomicRanges`, `data.table`, `readxl`, `openxlsx`, `digest`, `RSQLite`, `fs`,
-`stringr`, `eulerr`. A subset of scripts also need `bedr` (with `bedtools` on `PATH`)
-and `tidygenomics`.
+`IRanges`/`GenomicRanges`, `data.table`, `readxl`, `openxlsx`, `digest`, `RSQLite`,
+`stringr`, `org.Hs.eg.db`, `AnnotationDbi`, `knitr`. A subset of scripts also
+need `bedr` (with `bedtools` on `PATH`) and `tidygenomics`.
 
 Analyses load processed data from `data/`: precompiled snapshots in `data/db/` and the
 committed clinical export in `data/raw/CRDB/`. Each analysis directory has a

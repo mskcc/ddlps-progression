@@ -1,20 +1,17 @@
-# VERIFY.md — verifying the public `master` branch on the HPC server
+# VERIFY.md — verifying the public `master` branch
 
 This document is a step-by-step protocol to confirm that the pruned, paper-only public repo
-(`master`) is intact and reproduces the manuscript's computational outputs **on the
-HPC server**, where the full environment exists (R with `openxlsx`, `bedr`/bedtools,
-the `~/.Rprofile` helpers, and the institutional `/ifs/rtsia01/...` paths). All Excel
-writes in the figure pipeline have been migrated off the rJava-backed `xlsx` package to
-`openxlsx`, so neither `xlsx` nor a Java install is required.
+(`master`) is intact and reproduces the manuscript's computational outputs. It runs on any
+system with R (>= 4.2.2), `openxlsx`, and `bedr` + the `bedtools` binary on `PATH`. Helper
+functions previously sourced from `~/.Rprofile` (`cc()`, `len()`, `DATE()`, `suppress()`,
+`write.xls()`, `write_xlsx()`) now live in the in-repo file `R/helpers.R` and are sourced
+by each script that needs them (via per-directory `R -> ../R` symlinks), so no user-level R
+startup file is required. All Excel writes in the figure pipeline have been migrated off
+the rJava-backed `xlsx` package to `openxlsx`, so neither `xlsx` nor a Java install is
+required.
 
 (Historical: the pruning work happened on branch `manu/v_2026`, which is now the `master`
 branch of the public repo.)
-
-It was written off-server, so several scripts could only be *partially* verified locally
-(no `bedr`, no `/ifs` paths). Steps below are flagged:
-
-- **[verified-local]** — already run off-server; expected to "just work" here.
-- **[hpc-first-run]** — first executed here; give these extra scrutiny.
 
 ## Conventions used in every check
 
@@ -26,8 +23,8 @@ It was written off-server, so several scripts could only be *partially* verified
   output *is* the paper baseline. After running a script you compare the regenerated file
   against the committed one:
   - text output → `git diff --no-color <file>` shows content changes; `verify.sh` does a
-    float-tolerant comparison (cell-by-cell, rel-tol `1e-9`), so trailing-digit float
-    rounding (HPC vs Mac IEEE-754) is counted as PASS, real value changes as WARN/FAIL;
+    float-tolerant comparison (cell-by-cell, rel-tol `1e-9`), so trailing-digit IEEE-754
+    float rounding is counted as PASS, real value changes as WARN/FAIL;
   - binary output (`.xlsx`/`.pdf`/`.rda`) → `git diff --stat <file>` shows whether bytes
     changed at all.
   - Then discard the regenerated file with `git checkout -- <file>` so the branch stays
@@ -39,30 +36,25 @@ It was written off-server, so several scripts could only be *partially* verified
 Set this once so the snippets are copy-pasteable:
 
 ```bash
-export REPO=/path/to/ddlps-progression      # <-- edit to the clone path on HPC
+export REPO=/path/to/ddlps-progression      # <-- edit to the clone path
 cd "$REPO"
 ```
 
 > **Shortcut:** `verify.sh` at the repo root automates this entire protocol.
-> After loading your modules (Step 0), run `./verify.sh` to execute every step
-> and print a PASS/FAIL/WARN summary table; `./verify.sh --list` shows the step
-> ids; `./verify.sh 4a 6a` runs only selected steps. It restores every
-> regenerated output afterward so the working tree stays clean. The manual
-> steps below remain the authoritative reference for the PASS/FAIL criteria and
-> for inspecting any step the script flags **WARN**.
+> Run `./verify.sh` to execute every step and print a PASS/FAIL/WARN summary
+> table; `./verify.sh --list` shows the step ids; `./verify.sh 4a 6a` runs only
+> selected steps. It restores every regenerated output afterward so the working
+> tree stays clean. The manual steps below remain the authoritative reference
+> for the PASS/FAIL criteria and for inspecting any step the script flags
+> **WARN**.
 
 ---
 
-## Step 0 — Environment / modules
+## Step 0 — Environment
 
-The repo does not load HPC modules for you. Load your site's modules first, e.g.:
+R 4.2.2 or newer with `bedtools` on `PATH` (required by the `bedr` package).
 
-```bash
-module load R/4.2.2        # floor is R 4.2.2; development was on 4.5.1
-module load bedtools       # required for the bedr package
-```
-
-(No Java/`xlsx` module is needed — all `.xlsx` writes now go through `openxlsx`.)
+(No Java/`xlsx` install is needed — all `.xlsx` writes now go through `openxlsx`.)
 
 PASS: the next command prints R 4.2.2 or newer. (`verify.sh` enforces the floor
 numerically; override with `R_MIN=4.3.0 ./verify.sh` if needed.)
@@ -73,27 +65,27 @@ Rscript --version
 
 ---
 
-## Step 1 — Branch, working tree, and `~/.Rprofile`
+## Step 1 — Branch, working tree, and bundled helpers
 
 ```bash
 cd "$REPO"
 git status -sb | head -1            # expect: ## master
-git log --oneline -1               # the prune/manifest commit (or note if not yet committed)
-ls -l ~/.Rprofile                  # must exist; defines cc(), write.xls(), DATE(), len(), etc.
+git log --oneline -1                # the release commit
+ls -l R/helpers.R                   # bundled cc(), len(), DATE(), suppress(), write.xls(), write_xlsx()
 ```
 
 PASS:
 - branch is `master`, **or** any feature branch descended from it (`verify.sh`
   accepts both — useful when working on a `fix/*` branch off `master`);
-- `~/.Rprofile` exists. The HPC `~/.Rprofile` must define `cc`, `write.xls`, `write_xlsx`,
-  `DATE`, `len`, `getSDIR`, `halt`, `suppress`. Confirm:
+- `R/helpers.R` exists and defines `cc`, `write.xls`, `write_xlsx`, `DATE`, `len`,
+  `suppress`. Confirm:
 
 ```bash
-Rscript -e 'source("~/.Rprofile"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","getSDIR","halt","suppress"), exists)), "\n")'
+Rscript -e 'source("R/helpers.R"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","suppress"), exists)), "\n")'
 ```
 
-PASS: prints `TRUE`. FAIL: if `FALSE`, the HPC `.Rprofile` differs from the one the code
-was written against — stop and reconcile before continuing.
+PASS: prints `TRUE`. FAIL: if `FALSE`, `R/helpers.R` has been edited or is missing —
+restore it from `master` before continuing.
 
 ---
 
@@ -102,7 +94,8 @@ was written against — stop and reconcile before continuing.
 ```bash
 Rscript -e '
 pkgs <- c("tidyverse","limma","edgeR","gplots","IRanges","GenomicRanges",
-          "data.table","readxl","openxlsx","digest","RSQLite","fs","stringr",
+          "data.table","readxl","openxlsx","digest","RSQLite","stringr",
+          "org.Hs.eg.db","AnnotationDbi","knitr",
           "bedr","tidygenomics")
 inst <- rownames(installed.packages())
 for (p in pkgs) cat(sprintf("%-14s %s\n", p, if (p %in% inst) "OK" else "*** MISSING ***"))
@@ -161,7 +154,7 @@ PASS: prints `ALL DATA SYMLINKS OK`.
 cd "$REPO"
 for f in \
   data/u133a.rda data/cellLines.rda data/targetsUnion.Rdata \
-  data/sampleTable.csv \
+  data/sampleTable.csv data/chr12qEvent.csv \
   data/raw/CRDB/FullDataExport_Nick_Socci_04_05_2016___PaperFREEZE_2017_05_03.txt \
   data/raw/CGH/cghCBSRdataFiles \
   data/raw/CGH/rae/FEAT.file \
@@ -172,6 +165,8 @@ for f in \
   data/db/Proj_04610_manu___SOMATIC_FACETS.vep.filtered.maf.gz \
   data/db/Proj_3704_Merge_GeneCounts.txt.gz \
   data/db/targetsUnion.Rdata data/db/chr12q_mirna.txt \
+  data/db/maf_colClasses data/db/maf_colnames \
+  data/db/progressionEventTable.csv \
   data/db/averageSignal_3Sort_M3_.txt data/db/human.hg18.genome data/db/survialRegions \
   data/db/progressionSet.txt data/db/CNV.file \
   analysis/mRNAvsCGH/Rlib/annotation.R analysis/mRNAvsCGH/Rlib/hgu133a.sqlite ; do
@@ -183,12 +178,12 @@ PASS: every line is `OK`. Two of these — `analysis/mRNAvsCGH/Rlib/{annotation.
 — were **moved here from `Pass1/`** during pruning (see Step 6); their presence confirms
 the move survived.
 
-### 3c. Smoke-test the loaders **[verified-local]**
+### 3c. Smoke-test the loaders
 
 ```bash
 cd "$REPO/data"
 Rscript --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages({
   source("sampleTable.R"); source("progressionSet.R"); source("crdb.R")
   source("cghUBM.R");      source("cghGeneMatrix.R");   source("rnaSeq.R")
@@ -204,25 +199,25 @@ cat("LOADERS_OK\n")
 '
 ```
 
-PASS (expected numbers, verified off-server):
+PASS (expected numbers):
 - `sampleTable rows: 349`
 - `ubm$a0 dims : 19933 x 187`
 - `geneCGH dims : 24904 x 187`
 - `rnaSeq$ds dims : 20032 x 24`
 - final line `LOADERS_OK`
 
-FAIL: a different row/col count means the `data/db/` snapshots on HPC differ from those in
-the branch — investigate which file.
+FAIL: a different row/col count means the `data/db/` snapshots differ from those committed
+in the branch — investigate which file.
 
-### 3d. `data/maf.R` loads the WES MAF **[verified-local]** (Supp Tables 9/10)
+### 3d. `data/maf.R` loads the WES MAF (Supp Tables 9/10)
 
 > Reads the gzipped MAF via `gzip -cd` (was `zcat`, which fails on macOS BSD).
-> Verified locally: `mafs$complete` 71319 rows, `mafs$patient` 60895 rows.
+> Reference counts: `mafs$complete` 71319 rows, `mafs$patient` 60895 rows.
 
 ```bash
 cd "$REPO/data"
 Rscript --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages(source("maf.R")))
 cat("mafs$complete rows:", nrow(mafs$complete), "\n")
 cat("mafs$patient  rows:", nrow(mafs$patient), "\n")
@@ -237,7 +232,7 @@ become the reference for any later mutation-table work.)
 
 ## Step 4 — Figure 1 chain: Venn (1B) → heatmap (1A)
 
-### 4a. `VennTable/mkVennTable.R` (v14) — Fig 1B + Supp Table 3 **[verified-local]**
+### 4a. `VennTable/mkVennTable.R` (v14) — Fig 1B + Supp Table 3
 
 The intermediate inputs it reads (`U133A_NFvsWD/...v4.txt`, `RNASeq_Progression/...txt`,
 `CGHGenes/...v3.txt`, `Chr12q_miRNA_Targets/...txt`) are committed, so this runs directly.
@@ -258,7 +253,7 @@ PASS:
 - script runs to completion and writes the `.txt`, `.xlsx`, and three Venn PDFs;
 - `git diff --no-color joinTableCragoProgression_v14_.txt` shows **either nothing or only
   trailing-digit float differences**. `verify.sh` does this comparison cell-by-cell with
-  rel-tol `1e-9`, so HPC-vs-Mac IEEE-754 rounding noise is automatically classified PASS.
+  rel-tol `1e-9`, so IEEE-754 rounding noise is automatically classified PASS.
 
 FAIL: any gene added/removed or any value differing beyond the ~13th significant digit.
 
@@ -269,30 +264,29 @@ git checkout -- joinTableCragoProgression_v14_.txt cghCellLine_miRNA_Venn_v14_.p
   mrnaGeneSetsVenn_v14_.pdf vennDiagrams_mRNA_v14_.pdf joinTableCragoProgression_v14_.xlsx 2>/dev/null
 ```
 
-### 4b. Regenerate the Venn **inputs** and confirm they match **[hpc-first-run]**
+### 4b. Upstream DE regenerators (not run by `verify.sh`)
 
-Off-server I used the *committed* intermediate files. On HPC, confirm the upstream DE
-scripts reproduce them.
+The seven inputs `mkVennTable.R` reads are committed to the repo, and step 4a treats them
+as the boundary of the figure-reproduction check. The scripts that originally produced
+those inputs are preserved alongside each input as the canonical record of its derivation,
+but `verify.sh` does NOT run them:
 
-```bash
-cd "$REPO/VennTable/U133A_NFvsWD"   && Rscript --no-save doU133A_WDvsNF.R   2>&1 | tail -3
-cd "$REPO/VennTable/RNASeq_Progression" && Rscript --no-save diffRNASeqPOOLED.R 2>&1 | tail -3
-cd "$REPO/VennTable/RNASeq_Progression" && Rscript --no-save diffRNASeqPAIRED.R 2>&1 | tail -3
-cd "$REPO/VennTable/CGHGenes"       && Rscript --no-save getCGHGenes.R       2>&1 | tail -3
-cd "$REPO/VennTable/Chr12q_miRNA_Targets" && Rscript --no-save get12qTargets.R 2>&1 | tail -3
-cd "$REPO"
-git --no-pager diff --stat -- \
-  VennTable/U133A_NFvsWD/u133A_WDrs_vs_NF_Pfilter_ALL_v4.txt \
-  VennTable/RNASeq_Progression/rnaSEQ_FIRST_WD_vs_NF_Pop__FDR_1.01_.txt \
-  VennTable/RNASeq_Progression/rnaSEQ_FIRST_WD_vs_NF_Paired__FDR__v2_1.01_.txt \
-  VennTable/CGHGenes/geneCGHvsU133aConcordence_v3.txt
-```
+- `VennTable/U133A_NFvsWD/doU133A_WDvsNF.R` → `u133A_WDrs_vs_NF_Pfilter_ALL_v4.txt`
+- `VennTable/RNASeq_Progression/diffRNASeqPOOLED.R` → `rnaSEQ_FIRST_WD_vs_NF_Pop__FDR_1.01_.txt`
+- `VennTable/RNASeq_Progression/diffRNASeqPAIRED.R` → `rnaSEQ_FIRST_WD_vs_NF_Paired__FDR__v2_1.01_.txt`
+- `VennTable/CGHGenes/getCGHGenes.R` → `geneCGHvsU133aConcordence_v3.txt`
+- `VennTable/Chr12q_miRNA_Targets/get12qTargets.R` → `chr12_miRNA_ConsistentTargets.txt`
+  (reads the frozen sibling `../U133A_NFvsWD/u133A_WDrs_vs_NF_Pfilter_ALL_v3.txt`; no
+  script regenerates `_v3.txt`)
+- `VennTable/CellLines/diffCellLines.R` → `CellLines/diffGenes_20170428_*.txt`
+  (the script's output filename embeds `DATE()`, so re-running it today would not produce
+  the dated files `mkVennTable.R` reads — see `mkVennTable.R` lines 8-10)
 
-PASS: each script completes; the `git diff` of the four intermediate `.txt` files shows no
-change or trivial float diffs. Then `git checkout --` them. (If these match, re-running 4a
-on the freshly generated inputs is optional but is the strongest end-to-end proof.)
+To exercise any of these regenerators by hand, run it from its own directory and compare
+the regenerated output against the committed copy with `git diff` (then
+`git checkout --` to discard the regenerated file).
 
-### 4c. `figures/mRNAHeatmap/heatmapV2.R` — Fig 1A **[verified-local]**
+### 4c. `figures/mRNAHeatmap/heatmapV2.R` — Fig 1A
 
 Reads `joinTableCragoProgression_v14_.txt` via a symlink to `VennTable/`.
 
@@ -311,7 +305,7 @@ change (PDF timestamp) — open it and confirm it is the WDLS-vs-normal-fat clus
 
 ## Step 5 — Copy-number figures and tables
 
-### 5a. `figures/CGHProfiles/plotRAEProfile.R` — Fig 2A / Supp Fig 1 **[hpc-first-run]**
+### 5a. `figures/CGHProfiles/plotRAEProfile.R` — Fig 2A / Supp Fig 1
 
 Genome-wide amplification/deletion frequency profiles. Takes a sample-type argument in the
 original workflow; run it as the committed outputs imply (WD and DD):
@@ -326,7 +320,7 @@ ls -l raePlotA0D0_*.{pdf,png} 2>/dev/null
 PASS: produces `raePlotA0D0_WD_*` and `raePlotA0D0_DD_*` without error. Compare against the
 committed versions (`git diff --stat`), then `git checkout --` them.
 
-### 5b. `figures/CGHProfiles/plotChrRegion.R` — Fig 3B / 4A **[verified-local]**
+### 5b. `figures/CGHProfiles/plotChrRegion.R` — Fig 3B / 4A
 
 ```bash
 cd "$REPO/figures/CGHProfiles"
@@ -338,7 +332,7 @@ git checkout -- "chr6Region_WD+DD_v4.pdf" chr6RegionTest_v3.pdf chr6RegionTest_W
 PASS: exits cleanly, writes `chr6Region_WD+DD_v4.pdf` (~13 KB). It is the 6q amplification-
 frequency profile (WD vs DD) with SASH1/CCDC28A/TAB2 loci.
 
-### 5c. `tables/CGHEventTable/getCGHEventTableSelected.R` — Supp Table 4 **[verified-local]**
+### 5c. `tables/CGHEventTable/getCGHEventTableSelected.R` — Supp Table 4
 
 ```bash
 cd "$REPO/tables/CGHEventTable"
@@ -349,7 +343,7 @@ git checkout -- cghEventTable___Manuscript__SelectRegions1.xlsx
 
 PASS: writes `cghEventTable___Manuscript__SelectRegions1.xlsx` with no error.
 
-### 5d. `tables/CGHEventTable/getRAEGeneTableSelect.R` — Supp Table 5 **[hpc-first-run]**
+### 5d. `tables/CGHEventTable/getRAEGeneTableSelect.R` — Supp Table 5
 
 ```bash
 cd "$REPO/tables/CGHEventTable"
@@ -361,12 +355,11 @@ git checkout -- cghGeneTable___Manuscript___SelectRegions1.xlsx
 PASS: writes `cghGeneTable___Manuscript___SelectRegions1.xlsx` with no error. (Reads the
 committed `ucsc_hg18__*.txt.gz` reference files in this directory.)
 
-### 5e. `tables/CGHEventTable/getRAEGeneTableByBands.R` — Supp Tables 13/14 **[hpc-first-run — needs `bedr`]**
+### 5e. `tables/CGHEventTable/getRAEGeneTableByBands.R` — Supp Tables 13/14 (needs `bedr`)
 
-This one failed off-server **only** because `bedr`/`bedtools` was unavailable
-(`could not find function "bedr.sort.region"`). Its data dependency — the preserved
-`data/raw/CGH/rae/FEAT.file` — read correctly. With `bedtools` loaded (Step 0/2) it should
-complete.
+Needs `bedr` plus the `bedtools` binary on `PATH`. Without `bedtools`, the script errors
+out with `could not find function "bedr.sort.region"`. Its data dependency
+(`data/raw/CGH/rae/FEAT.file`) is committed.
 
 ```bash
 cd "$REPO/tables/CGHEventTable"
@@ -375,9 +368,9 @@ git --no-pager diff --stat -- raeGeneTableSigRegionsV1.xlsx
 git checkout -- raeGeneTableSigRegionsV1.xlsx
 ```
 
-PASS: completes and writes `raeGeneTableSigRegionsV1.xlsx`. FAIL: if it still errors on
-`bedr.sort.region`, the `bedtools` binary is not on PATH — fix the module, do not change
-the code.
+PASS: completes and writes `raeGeneTableSigRegionsV1.xlsx`. FAIL: if it errors on
+`bedr.sort.region`, the `bedtools` binary is not on `PATH` — install/load bedtools, do not
+change the code.
 
 ---
 
@@ -387,14 +380,13 @@ During pruning, `Pass1/OldCopyNumPaper/Rlib/{annotation.R,hgu133a.sqlite}` were 
 to `analysis/mRNAvsCGH/Rlib/`, and these two scripts were repointed from
 `source("../../Pass1/OldCopyNumPaper/Rlib/annotation.R")` to `source("Rlib/annotation.R")`
 (and likewise for the sqlite path). These steps confirm the move + repoint are correct.
-Both reproduced **identically** off-server. They use `openxlsx` (not `xlsx`).
+Both reproduce identically. They use `openxlsx` (not `xlsx`).
 
 > Note: `Rlib/annotation.R` also defines a `load.GO.ann()` that references
 > `~/Work/AnnoteDBs/GO.sqlite`. The integration scripts call only `getAnnoteTable()`, **not**
-> `load.GO.ann()`, so that GO path is not needed. If a future edit calls `load.GO.ann()`,
-> that file would have to exist on HPC.
+> `load.GO.ann()`, so that GO path is not needed.
 
-### 6a. WD integration — Fig 3A + Supp Table 7 **[verified-local, identical]**
+### 6a. WD integration — Fig 3A + Supp Table 7
 
 ```bash
 cd "$REPO/analysis/mRNAvsCGH"
@@ -416,12 +408,12 @@ PASS:
 
 ```bash
 Rscript -e 'a=readxl::read_xlsx("suppTable_4_with_U133A__WDpEvent_vs_WD_without_v2.xlsx"); cat("dim:",dim(a),"\n")'
-# off-server reference: dim 127 7
+# reference: dim 127 7
 ```
 
 FAIL: a `cannot open file 'Rlib/...'` or SQLite error means the move/repoint is wrong.
 
-### 6b. DD integration — Fig 6B + Supp Tables 8/13 **[verified-local]**
+### 6b. DD integration — Fig 6B + Supp Tables 8/13
 
 ```bash
 cd "$REPO/analysis/mRNAvsCGH"
@@ -439,7 +431,7 @@ PASS: completes; writes `suppTable_12_..._v3.xlsx`; paths reference `Rlib/`.
 
 ## Step 7 — Remaining analyses
 
-### 7a. `analysis/ProgressionBlocks/findProgressionBlocks.R` — Fig 6A inputs **[verified-local]**
+### 7a. `analysis/ProgressionBlocks/findProgressionBlocks.R` — Fig 6A inputs
 
 ```bash
 cd "$REPO/analysis/ProgressionBlocks"
@@ -452,7 +444,7 @@ git checkout -- progressionBlocks_WDvsDD_Expr_v1*.xlsx 2>/dev/null
 PASS: completes and writes the progression-blocks workbook (chr13 / chr8 sheets). The final
 IGV image (Fig 6A) is produced manually from these calls, not by this script.
 
-### 7b. `analysis/JUN_Freq/cghJUN.R` — JUN 1p32 frequency **[verified-local]**
+### 7b. `analysis/JUN_Freq/cghJUN.R` — JUN 1p32 frequency
 
 > This file was previously a raw REPL transcript (a saved interactive session with a
 > half-typed broken line) that could not run with `Rscript`. It has been rewritten as a
@@ -468,7 +460,7 @@ PASS: runs and prints JUN-amplification frequencies by TYPE consistent with the 
 (WDLS amplified 0.057, DDLS amplified 0.269; Supp Table 14). Console/table script —
 capture the output.
 
-### 7c. `analysis/Chr12qEvent/getChr12q_Boundry.R` — chr12q boundary **[hpc-first-run]**
+### 7c. `analysis/Chr12qEvent/getChr12q_Boundry.R` — chr12q boundary
 
 ```bash
 cd "$REPO/analysis/Chr12qEvent"
@@ -481,7 +473,7 @@ PASS: completes and writes `chr12qEvent.txt`.
 
 ---
 
-## Step 8 — Sample tables (Table 1 / Supp Tables 1,2) **[verified-local]**
+## Step 8 — Sample tables (Table 1 / Supp Tables 1,2)
 
 ```bash
 cd "$REPO/reports"
@@ -500,20 +492,6 @@ Excluded sheets; `mkJoinTbl.R` consumes it and writes the ClinJoin workbook.
 
 ---
 
-## Step 9 — Optional / environment-specific
-
-These are not figure-generating and depend on institutional paths. Verify only if you need
-to regenerate submission metadata.
-
-### 9a. Submission metadata generators **[hpc-only, known non-portable path]**
-
-- `Geo/makeMasterManifest.R` — GEO GSE244163 manifest.
-- `DbGap/Project_04610_WES/mkDbGapMetaData.R` — **reads an absolute path outside the repo**
-  (`../../../../CRDB.LIMS/dumps/2022.04.09/...csv`). It only regenerates dbGaP metadata; it
-  does not affect any figure/table. Run only if that CRDB dump is reachable from the clone.
-
----
-
 ## Step 10 — Final integrity sweep and cleanup
 
 After the per-step `git checkout --` resets, the working tree should be back to the clean
@@ -528,7 +506,7 @@ Confirm no kept script still points at a pruned location (should print nothing):
 
 ```bash
 grep -rEn 'Pass1/|raw/OldSets/|raw/CGH/rae/(Rae|funcs|getEvent|plot|compute)|GeneVsGeneCorr|doGSEA|makeSampleTable' \
-  --include=*.R analysis VennTable figures tables data reports Geo DbGap
+  --include=*.R analysis VennTable figures tables data reports
 ```
 
 PASS: empty output.
@@ -539,14 +517,13 @@ PASS: empty output.
 
 | # | Check | Result |
 |---|---|---|
-| 1 | Branch `master`, `~/.Rprofile` helpers present | ☐ |
+| 1 | Branch `master`, `R/helpers.R` present | ☐ |
 | 2 | All packages OK incl. `openxlsx` and `bedr`(+bedtools) | ☐ |
 | 3a| No broken `data` symlinks | ☐ |
 | 3b| All input blobs (`data/`, `data/db/`, `Rlib/`, `FEAT.file`) present | ☐ |
 | 3c| Loader smoke test: 349 / 19933×187 / 24904×187 / 20032×24 | ☐ |
 | 3d| `data/maf.R` loads (record row counts) | ☐ |
 | 4a| `mkVennTable.R` → join table reproduces (text diff trivial) | ☐ |
-| 4b| Venn inputs regenerate and match | ☐ |
 | 4c| `heatmapV2.R` → Fig 1A | ☐ |
 | 5a| `plotRAEProfile.R` → Fig 2A | ☐ |
 | 5b| `plotChrRegion.R` → Fig 3B/4A | ☐ |
@@ -559,7 +536,6 @@ PASS: empty output.
 | 7b| `cghJUN.R` → JUN freq (WD ~5.9% / DD ~27%) | ☐ |
 | 7c| `getChr12q_Boundry.R` → chr12q event | ☐ |
 | 8 | Sample tables (`getSampleTable.R`, `mkJoinTbl.R`) | ☐ |
-| 9 | (optional) submission metadata generators | ☐ |
 | 10| Final sweep clean; no references to pruned paths | ☐ |
 
 ## Not reproducible from this repo (do NOT expect outputs)
