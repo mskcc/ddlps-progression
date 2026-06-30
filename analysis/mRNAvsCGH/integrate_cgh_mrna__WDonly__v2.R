@@ -1,3 +1,5 @@
+source("R/helpers.R")
+
 data(u133a)
 data(cghEventsPerBlock)
 data(sampleTable)

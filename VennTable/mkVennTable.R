@@ -30,6 +30,8 @@
 # by combined FDR scores, plus Venn diagrams showing platform overlaps.
 #
 
+source("R/helpers.R")
+
 VERSION="v14"
 
 library(gplots)

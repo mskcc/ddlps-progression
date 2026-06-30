@@ -1,3 +1,5 @@
+source("R/helpers.R")
+
 data(cghGeneMatrix)
 cgh_probes=rownames(geneCGH)
 

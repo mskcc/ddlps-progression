@@ -3,9 +3,13 @@
 This document is a step-by-step protocol to confirm that the pruned, paper-only public repo
 (`master`) is intact and reproduces the manuscript's computational outputs **on the
 HPC server**, where the full environment exists (R with `openxlsx`, `bedr`/bedtools,
-the `~/.Rprofile` helpers, and the institutional `/ifs/rtsia01/...` paths). All Excel
-writes in the figure pipeline have been migrated off the rJava-backed `xlsx` package to
-`openxlsx`, so neither `xlsx` nor a Java install is required.
+and the institutional `/ifs/rtsia01/...` paths). Helper functions previously sourced from
+`~/.Rprofile` (`cc()`, `len()`, `DATE()`, `suppress()`, `write.xls()`, `write_xlsx()`)
+now live in the in-repo file `R/helpers.R` and are sourced by each script that needs
+them (via per-directory `R -> ../R` symlinks), so no user-level R startup file is
+required. All Excel writes in the figure
+pipeline have been migrated off the rJava-backed `xlsx` package to `openxlsx`, so neither
+`xlsx` nor a Java install is required.
 
 (Historical: the pruning work happened on branch `manu/v_2026`, which is now the `master`
 branch of the public repo.)
@@ -73,27 +77,27 @@ Rscript --version
 
 ---
 
-## Step 1 — Branch, working tree, and `~/.Rprofile`
+## Step 1 — Branch, working tree, and bundled helpers
 
 ```bash
 cd "$REPO"
 git status -sb | head -1            # expect: ## master
 git log --oneline -1               # the prune/manifest commit (or note if not yet committed)
-ls -l ~/.Rprofile                  # must exist; defines cc(), write.xls(), DATE(), len(), etc.
+ls -l R/helpers.R                  # bundled cc(), len(), DATE(), suppress(), write.xls(), write_xlsx()
 ```
 
 PASS:
 - branch is `master`, **or** any feature branch descended from it (`verify.sh`
   accepts both — useful when working on a `fix/*` branch off `master`);
-- `~/.Rprofile` exists. The HPC `~/.Rprofile` must define `cc`, `write.xls`, `write_xlsx`,
-  `DATE`, `len`, `getSDIR`, `halt`, `suppress`. Confirm:
+- `R/helpers.R` exists and defines `cc`, `write.xls`, `write_xlsx`, `DATE`, `len`,
+  `suppress`. Confirm:
 
 ```bash
-Rscript -e 'source("~/.Rprofile"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","getSDIR","halt","suppress"), exists)), "\n")'
+Rscript -e 'source("R/helpers.R"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","suppress"), exists)), "\n")'
 ```
 
-PASS: prints `TRUE`. FAIL: if `FALSE`, the HPC `.Rprofile` differs from the one the code
-was written against — stop and reconcile before continuing.
+PASS: prints `TRUE`. FAIL: if `FALSE`, `R/helpers.R` has been edited or is missing —
+restore it from `master` before continuing.
 
 ---
 
@@ -191,7 +195,7 @@ the move survived.
 ```bash
 cd "$REPO/data"
 Rscript --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages({
   source("sampleTable.R"); source("progressionSet.R"); source("crdb.R")
   source("cghUBM.R");      source("cghGeneMatrix.R");   source("rnaSeq.R")
@@ -225,7 +229,7 @@ the branch — investigate which file.
 ```bash
 cd "$REPO/data"
 Rscript --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages(source("maf.R")))
 cat("mafs$complete rows:", nrow(mafs$complete), "\n")
 cat("mafs$patient  rows:", nrow(mafs$patient), "\n")
@@ -541,7 +545,7 @@ PASS: empty output.
 
 | # | Check | Result |
 |---|---|---|
-| 1 | Branch `master`, `~/.Rprofile` helpers present | ☐ |
+| 1 | Branch `master`, `R/helpers.R` present | ☐ |
 | 2 | All packages OK incl. `openxlsx` and `bedr`(+bedtools) | ☐ |
 | 3a| No broken `data` symlinks | ☐ |
 | 3b| All input blobs (`data/`, `data/db/`, `Rlib/`, `FEAT.file`) present | ☐ |

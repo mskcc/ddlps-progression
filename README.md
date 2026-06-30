@@ -38,8 +38,10 @@ Scripts use relative paths and are run **from their own directory** in batch mod
 cd VennTable && Rscript --no-save mkVennTable.R
 ```
 
-Many scripts rely on helper functions defined in `~/.Rprofile` (`cc()`, `write.xls()`,
-`DATE()`, `len()`, etc.); source it first in a fresh session.
+Helper functions used by the scripts (`cc()`, `len()`, `DATE()`, `suppress()`,
+`write.xls()`, `write_xlsx()`) are defined in `R/helpers.R` and sourced
+automatically by each script that needs them via the per-directory `R -> ../R`
+symlinks. No `~/.Rprofile` setup is required.
 
 R 4.2.2 or newer. Required packages: `tidyverse`, `limma`, `edgeR`, `gplots`,
 `IRanges`/`GenomicRanges`, `data.table`, `readxl`, `openxlsx`, `digest`, `RSQLite`,

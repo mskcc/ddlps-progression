@@ -23,7 +23,8 @@
 #   fig1B_counts_v14_.txt     -- every region count (auditable; sums to 686)
 #
 
-suppress <- suppressPackageStartupMessages
+source("R/helpers.R")
+
 suppress(library(tidyverse))
 
 VERSION <- "v14"
