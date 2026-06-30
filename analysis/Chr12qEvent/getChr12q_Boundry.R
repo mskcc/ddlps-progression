@@ -1,3 +1,5 @@
+source("R/helpers.R")
+
 data(cghUBM)
 data(progressionSet)
 

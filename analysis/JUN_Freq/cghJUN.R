@@ -9,6 +9,8 @@
 #   1p32 (JUN) gain 5 (5.9%)        25 (27%)        <0.001
 #
 
+source("R/helpers.R")
+
 suppress(library(tidyverse))
 
 # The data() loaders attach Bioconductor packages (IRanges, S4Vectors, ...);

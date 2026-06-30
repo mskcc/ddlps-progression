@@ -1,3 +1,5 @@
+source("R/helpers.R")
+
 data(hg18)
 data(cghUBM)
 data(sampleTable)

@@ -109,8 +109,8 @@ they are the **12q ∩ CDK4i** overlap. The `12q ∩ shMDM2 only` region is genu
 ## Notes
 
 - These are the reproducible v14 numbers. The previously published/hand-drawn Figure 1B
-  used a cell-line breakdown matching neither v14 nor v24 (see
-  `RECONCILIATION_2026-06-15_v2.md` Issue 3 and `methods_fig1B.md`).
+  used a cell-line breakdown that matches neither v14 nor v24; see `methods_fig1B.md`
+  for the bookkeeping notes.
 - Regenerate with `cd VennTable && Rscript --no-save mkFig1B.R`, or recompute directly
   from `joinTableCragoProgression_v14_.txt`.
 - Generated 2026-06-15 from joinTableCragoProgression_v14_.txt.

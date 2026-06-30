@@ -4,9 +4,11 @@
 # (bash 3.2+ compatible: no associative arrays, so it runs on macOS too)
 #
 # Confirms the pruned, paper-only public repo (master) is intact and reproduces
-# the manuscript's computational outputs. Run it on the HPC server, where the
-# full environment exists (R with openxlsx and bedr/bedtools, the ~/.Rprofile
-# helpers, and the institutional /ifs/rtsia01 paths).
+# the manuscript's computational outputs. Requires R (>= 4.2.2) with openxlsx
+# and bedr, and the bedtools binary on PATH. The legacy ~/.Rprofile helpers
+# (cc, len, DATE, suppress, write.xls, write_xlsx) are bundled in R/helpers.R
+# and are sourced by every script that needs them via per-directory
+# R -> ../R symlinks, so no user dotfile is required.
 #
 # (Historical: the pruning work happened on branch manu/v_2026, which is now
 # the master branch of the public repo.)
@@ -45,8 +47,8 @@ cd "$REPO" || { echo "Cannot cd to REPO=$REPO"; exit 99; }
 
 RSCRIPT="${RSCRIPT:-Rscript}"
 
-# Minimum supported R version (floor). The HPC cluster runs 4.2.2; development
-# was on 4.5.1. Override with: R_MIN=4.3.0 ./verify.sh
+# Minimum supported R version (floor). Development was on 4.5.1; 4.2.2 is the
+# tested floor. Override with: R_MIN=4.3.0 ./verify.sh
 R_MIN="${R_MIN:-4.2.2}"
 
 # ----------------------------------------------------------------------------
@@ -252,7 +254,7 @@ missing_dep() {  # missing_dep <output>
 step_0() {
   step_hdr 0 "Environment (R >= $R_MIN)"
   if ! command -v "$RSCRIPT" >/dev/null 2>&1; then
-    record 0 FAIL "Rscript not on PATH (load your R module first)"
+    record 0 FAIL "Rscript not on PATH (install R or set RSCRIPT=/path/to/Rscript)"
     return
   fi
   # Numeric comparison via R (handles 4.2.2 vs 4.10.x correctly, unlike globbing).
@@ -267,7 +269,7 @@ step_0() {
 }
 
 step_1() {
-  step_hdr 1 "Branch + ~/.Rprofile helpers"
+  step_hdr 1 "Branch + R/helpers.R"
   local br ref; br="$(git -C "$REPO" branch --show-current)"
   # PASS on master itself, or on any feature branch descended from it (i.e.
   # master's tip is an ancestor of HEAD). Refs are resolved locally; if no
@@ -288,16 +290,16 @@ step_1() {
       record 1 WARN "branch is '$br' (not a descendant of master)"
     fi
   fi
-  if [ -f "$HOME/.Rprofile" ]; then
+  if [ -f "$REPO/R/helpers.R" ]; then
     local ok
-    ok="$("$RSCRIPT" -e 'source("~/.Rprofile"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","getSDIR","halt","suppress"), exists)))' 2>/dev/null)"
+    ok="$( cd "$REPO" && "$RSCRIPT" -e 'source("R/helpers.R"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","suppress"), exists)))' 2>/dev/null)"
     if [ "$ok" = "TRUE" ]; then
-      record 1 PASS "~/.Rprofile defines cc/write.xls/write_xlsx/DATE/len/getSDIR/halt/suppress"
+      record 1 PASS "R/helpers.R defines cc/write.xls/write_xlsx/DATE/len/suppress"
     else
-      record 1 FAIL "~/.Rprofile missing one or more helpers (got: '$ok') - reconcile before continuing"
+      record 1 FAIL "R/helpers.R missing one or more helpers (got: '$ok')"
     fi
   else
-    record 1 FAIL "~/.Rprofile not found"
+    record 1 FAIL "R/helpers.R not found"
   fi
 }
 
@@ -311,14 +313,15 @@ step_2() {
   # caller and is NOT exercised by any verify step.
   out="$("$RSCRIPT" -e '
 pkgs <- c("tidyverse","limma","edgeR","gplots","IRanges","GenomicRanges",
-          "data.table","readxl","openxlsx","digest","RSQLite","fs","stringr",
+          "data.table","readxl","openxlsx","digest","RSQLite","stringr",
+          "org.Hs.eg.db","AnnotationDbi","knitr",
           "bedr","tidygenomics")
 inst <- rownames(installed.packages())
 miss <- pkgs[!(pkgs %in% inst)]
 cat(if(length(miss)) paste(miss, collapse=" ") else "NONE")
 ' 2>/dev/null)"
   if [ "$out" = "NONE" ]; then
-    record 2 PASS "all required packages installed (openxlsx, bedr, tidygenomics)"
+    record 2 PASS "all required packages installed (openxlsx, bedr, tidygenomics, org.Hs.eg.db, AnnotationDbi, knitr)"
   else
     # bedr/tidygenomics missing = WARN (degrades specific steps); core = FAIL
     local hard=""
@@ -356,7 +359,7 @@ step_3b() {
   local missing=0 f
   local files=(
     data/u133a.rda data/cellLines.rda data/targetsUnion.Rdata
-    data/sampleTable.csv
+    data/sampleTable.csv data/chr12qEvent.csv
     "data/raw/CRDB/FullDataExport_Nick_Socci_04_05_2016___PaperFREEZE_2017_05_03.txt"
     data/raw/CGH/cghCBSRdataFiles
     data/raw/CGH/rae/FEAT.file
@@ -367,6 +370,8 @@ step_3b() {
     data/db/Proj_04610_manu___SOMATIC_FACETS.vep.filtered.maf.gz
     data/db/Proj_3704_Merge_GeneCounts.txt.gz
     data/db/targetsUnion.Rdata
+    data/db/maf_colClasses data/db/maf_colnames
+    data/db/progressionEventTable.csv
     data/db/averageSignal_3Sort_M3_.txt data/db/human.hg18.genome
     data/db/progressionSet.txt data/db/CNV.file
     analysis/mRNAvsCGH/Rlib/annotation.R analysis/mRNAvsCGH/Rlib/hgu133a.sqlite
@@ -385,7 +390,7 @@ step_3c() {
   step_hdr 3c "Loader smoke test (expected dims)"
   local out
   out="$( cd "$REPO/data" && "$RSCRIPT" --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages({
   source("sampleTable.R"); source("progressionSet.R"); source("crdb.R")
   source("cghUBM.R");      source("cghGeneMatrix.R");   source("rnaSeq.R")
@@ -406,7 +411,7 @@ step_3d() {
   step_hdr 3d "data/maf.R loads WES MAF"
   local out
   out="$( cd "$REPO/data" && "$RSCRIPT" --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages(source("maf.R")))
 cat("COMPLETE",nrow(mafs$complete),"PATIENT",nrow(mafs$patient),"\n")
 ' 2>&1 )"
@@ -427,7 +432,7 @@ check_text_repro() {  # <id> <dir> <script> <committed_txt>
   if ! wrote_fresh "$REPO/$dir/$txt"; then
     local dep; dep="$(missing_dep "$ROUT")"
     if [ -n "$dep" ]; then
-      record "$id" WARN "$scr needs '$dep' - $txt not (re)written; install dep on HPC"
+      record "$id" WARN "$scr needs '$dep' - $txt not (re)written; install the missing R package"
     else
       record "$id" FAIL "$scr did not write $txt (rc=$RC): $(echo "$ROUT" | tail -1)"
     fi
@@ -438,8 +443,8 @@ check_text_repro() {  # <id> <dir> <script> <committed_txt>
     record "$id" PASS "$scr -> $txt reproduces (no diff)"
     return
   fi
-  # Raw diff found something; rule out pure float noise (HPC-vs-Mac
-  # trailing-digit rounding) before flagging as WARN.
+  # Raw diff found something; rule out pure float noise (cross-platform
+  # IEEE-754 trailing-digit rounding) before flagging as WARN.
   local material; material="$(text_diff_changed_lines_float_tol "$dir/$txt")"
   if [ "$material" = "0" ]; then
     record "$id" PASS "$scr -> $txt reproduces ($changed line(s) differ only in trailing-digit float noise, content identical)"
@@ -466,7 +471,7 @@ check_bin_written() {  # <id> <dir> <script> <committed_bin...>
   else
     local dep; dep="$(missing_dep "$ROUT")"
     if [ -n "$dep" ]; then
-      record "$id" WARN "$scr needs '$dep' - output not written; install dep on HPC"
+      record "$id" WARN "$scr needs '$dep' - output not written; install the missing R package"
     else
       record "$id" FAIL "$scr produced no fresh output (rc=$RC): $(echo "$ROUT" | tail -1)"
     fi
@@ -552,7 +557,7 @@ step_6a() {
   # stronger: dim check 127x7 (only if file present and readxl available)
   if [ -f "$REPO/analysis/mRNAvsCGH/suppTable_4_with_U133A__WDpEvent_vs_WD_without_v2.xlsx" ]; then
     local d; d="$("$RSCRIPT" -e 'suppressMessages(a<-readxl::read_xlsx("analysis/mRNAvsCGH/suppTable_4_with_U133A__WDpEvent_vs_WD_without_v2.xlsx")); cat(nrow(a),ncol(a))' 2>/dev/null)"
-    [ "$d" = "127 7" ] && record 6a PASS "WD suppTable_4 dim 127x7 (matches off-server ref)" \
+    [ "$d" = "127 7" ] && record 6a PASS "WD suppTable_4 dim 127x7 (matches reference)" \
                         || record 6a WARN "WD suppTable_4 dim '$d' (ref 127 7) - inspect"
   fi
 }
@@ -573,9 +578,9 @@ step_6b() {
 }
 
 step_7a() {
-  step_hdr 7a "findProgressionBlocks.R (Fig 6A inputs, needs xlsx)"
-  # writes TWO workbooks: __Manifest.xlsx via openxlsx (early), and the main
-  # _v1_.xlsx via xlsx (later). Track both so neither leaks into the tree.
+  step_hdr 7a "findProgressionBlocks.R (Fig 6A inputs)"
+  # writes TWO workbooks via openxlsx: __Manifest.xlsx (early) and the main
+  # _v1_.xlsx (later). Track both so neither leaks into the tree.
   check_bin_written 7a analysis/ProgressionBlocks findProgressionBlocks.R \
     progressionBlocks_WDvsDD_Expr_v1_.xlsx \
     progressionBlocks_WDvsDD_Expr_v1__Manifest.xlsx
@@ -605,7 +610,7 @@ step_7c() {
 }
 
 step_8() {
-  step_hdr 8 "Sample tables (Table 1 / Supp 1,2, needs xlsx)"
+  step_hdr 8 "Sample tables (Table 1 / Supp 1,2)"
   check_bin_written 8a reports getSampleTable.R sampleTableProgressionV10.xlsx
   # mkJoinTbl consumes the workbook getSampleTable just wrote
   check_bin_written 8b reports mkJoinTbl.R sampleTableProgressionV10__ClinJoin.xlsx
@@ -615,7 +620,7 @@ step_10() {
   step_hdr 10 "Final sweep: no kept script points at pruned paths"
   local hits
   hits="$(grep -rEn 'Pass1/|raw/OldSets/|raw/CGH/rae/(Rae|funcs|getEvent|plot|compute)|GeneVsGeneCorr|doGSEA|makeSampleTable' \
-        --include=*.R analysis VennTable figures tables data reports Geo DbGap 2>/dev/null)"
+        --include=*.R analysis VennTable figures tables data reports 2>/dev/null)"
   if [ -z "$hits" ]; then
     record 10 PASS "no references to pruned locations in kept scripts"
   else
@@ -633,8 +638,8 @@ ALL_STEPS=(0 1 2 3a 3b 3c 3d 4a 4c 5a 5b 5c 5d 5e 6a 6b 7a 7b 7c 8 10)
 step_desc() {
   case "$1" in
     0)  echo "R present (>= floor)" ;;
-    1)  echo "branch + ~/.Rprofile helpers" ;;
-    2)  echo "required R packages (openxlsx, bedr, tidygenomics)" ;;
+    1)  echo "branch + R/helpers.R" ;;
+    2)  echo "required R packages (openxlsx, bedr, tidygenomics, org.Hs.eg.db, AnnotationDbi, knitr)" ;;
     3a) echo "data symlinks resolve" ;;
     3b) echo "input blobs present" ;;
     3c) echo "loader smoke test (dims)" ;;
