@@ -2,6 +2,7 @@
 # Limit to reduced set of samples
 #
 
+source("R/helpers.R")
 source("tools.R")
 reducedSet=scan("db/cghCBSRdataFiles","")
 reducedSet=fixCGHSlideNames(reducedSet)

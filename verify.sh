@@ -5,8 +5,11 @@
 #
 # Confirms the pruned, paper-only public repo (master) is intact and reproduces
 # the manuscript's computational outputs. Run it on the HPC server, where the
-# full environment exists (R with openxlsx and bedr/bedtools, the ~/.Rprofile
-# helpers, and the institutional /ifs/rtsia01 paths).
+# full environment exists (R with openxlsx and bedr/bedtools, and the
+# institutional /ifs/rtsia01 paths). The legacy ~/.Rprofile helpers (cc, len,
+# DATE, suppress, write.xls, write_xlsx) are bundled in R/helpers.R and are
+# sourced by every script that needs them via per-directory R -> ../R symlinks,
+# so no user dotfile is required.
 #
 # (Historical: the pruning work happened on branch manu/v_2026, which is now
 # the master branch of the public repo.)
@@ -267,7 +270,7 @@ step_0() {
 }
 
 step_1() {
-  step_hdr 1 "Branch + ~/.Rprofile helpers"
+  step_hdr 1 "Branch + R/helpers.R"
   local br ref; br="$(git -C "$REPO" branch --show-current)"
   # PASS on master itself, or on any feature branch descended from it (i.e.
   # master's tip is an ancestor of HEAD). Refs are resolved locally; if no
@@ -288,16 +291,16 @@ step_1() {
       record 1 WARN "branch is '$br' (not a descendant of master)"
     fi
   fi
-  if [ -f "$HOME/.Rprofile" ]; then
+  if [ -f "$REPO/R/helpers.R" ]; then
     local ok
-    ok="$("$RSCRIPT" -e 'source("~/.Rprofile"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","getSDIR","halt","suppress"), exists)))' 2>/dev/null)"
+    ok="$( cd "$REPO" && "$RSCRIPT" -e 'source("R/helpers.R"); cat(all(sapply(c("cc","write.xls","write_xlsx","DATE","len","suppress"), exists)))' 2>/dev/null)"
     if [ "$ok" = "TRUE" ]; then
-      record 1 PASS "~/.Rprofile defines cc/write.xls/write_xlsx/DATE/len/getSDIR/halt/suppress"
+      record 1 PASS "R/helpers.R defines cc/write.xls/write_xlsx/DATE/len/suppress"
     else
-      record 1 FAIL "~/.Rprofile missing one or more helpers (got: '$ok') - reconcile before continuing"
+      record 1 FAIL "R/helpers.R missing one or more helpers (got: '$ok')"
     fi
   else
-    record 1 FAIL "~/.Rprofile not found"
+    record 1 FAIL "R/helpers.R not found"
   fi
 }
 
@@ -388,7 +391,7 @@ step_3c() {
   step_hdr 3c "Loader smoke test (expected dims)"
   local out
   out="$( cd "$REPO/data" && "$RSCRIPT" --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages({
   source("sampleTable.R"); source("progressionSet.R"); source("crdb.R")
   source("cghUBM.R");      source("cghGeneMatrix.R");   source("rnaSeq.R")
@@ -409,7 +412,7 @@ step_3d() {
   step_hdr 3d "data/maf.R loads WES MAF"
   local out
   out="$( cd "$REPO/data" && "$RSCRIPT" --no-save -e '
-source("~/.Rprofile")
+source("R/helpers.R")
 suppressWarnings(suppressMessages(source("maf.R")))
 cat("COMPLETE",nrow(mafs$complete),"PATIENT",nrow(mafs$patient),"\n")
 ' 2>&1 )"
@@ -636,7 +639,7 @@ ALL_STEPS=(0 1 2 3a 3b 3c 3d 4a 4c 5a 5b 5c 5d 5e 6a 6b 7a 7b 7c 8 10)
 step_desc() {
   case "$1" in
     0)  echo "R present (>= floor)" ;;
-    1)  echo "branch + ~/.Rprofile helpers" ;;
+    1)  echo "branch + R/helpers.R" ;;
     2)  echo "required R packages (openxlsx, bedr, tidygenomics, org.Hs.eg.db, AnnotationDbi, knitr)" ;;
     3a) echo "data symlinks resolve" ;;
     3b) echo "input blobs present" ;;

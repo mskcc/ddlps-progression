@@ -21,7 +21,8 @@
 # any existing file.
 #
 
-suppress <- suppressPackageStartupMessages
+source("R/helpers.R")
+
 suppress(library(tidyverse))
 
 d <- read.delim("joinTableCragoProgression_v14_.txt",
