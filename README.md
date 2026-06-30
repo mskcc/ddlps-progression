@@ -1,5 +1,7 @@
 # Longitudinal study of liposarcoma genomics
 
+Version: v1.0.0
+
 Crago AM, *et al*.
 
 Code to regenerate the computational figures and tables in:
